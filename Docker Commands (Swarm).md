@@ -22,186 +22,6 @@ Docker Basic commands
 | docker system prune -a                                    | Clean up unused data (images, containers, networks). Use with caution. | `docker system prune -a`                    |
 
 
-## Network
-sudo docker network create mynetwork   
-	- if mynetwork is used for containers then they can communicate with each other internally.
-## Volume
-```
-docker volume create mydata
-docker volume ls
-docker volume inspect mydata
-docker run -c mydata:/var/opt/project bash:latest bash -c "echo firstcontainer > /var/opt/project/first.txt"
-docker run -c mydata:/var/opt/project bash:latest bash -c "ls /var/opt/project"
-```
-
-docker system prune -a --volumes  %% danger for cleanup of volumes %%
-
-## Run container 
-```
-sudo docker run -it ubuntu:latest     %% ineractive terminal  -it %%
-echo "This is my first ubuntu container" > index.txt
-ls
-sudo docker rm <containerid>
-docker run -d --name firstcontainer -p 80:80 httpd
-curl http://localhost:80
-```
-Docker Content Trust
-export DOCKER_CONTENT_TRUST=1
-##  **What should my Dockerfile look like to run as a non-root user?**
-```
-FROM ubuntu:22.04
-
-# Create a non-root user and group
-RUN groupadd -r myuser && useradd -r -g myuser myuser
-
-# Set the user
-USER myuser
-
-# Your app logic here
-WORKDIR /app
-COPY . /app
-CMD ["./run.sh"]
-
-```
-
-
-## Docker Swarm
-```
-sudo docker swarm init
-sudo docker node ls
-sudo docker info
-sudo echo "secrets are important" > sec.txt   %% create secret %%
-sudo docker secret create sec1 ./sec.txt   %% create secret in docker from root %%
-sudo docker secret ls     %% lists secrets %%
-sudo docker secret inspect sec1
-sudo docker service create --name sec-test --secret="sec1" redis:alpine      %% create service with secret %%
-sudo docker ps --filter name=sec-test
-sudo docker exec -it <CONTAINER_ID> sh       %% sec-test container id %%
-cat /run/secrets/sec1     %% secret is stored in /run/secret/ %%
-sudo docker service ls -q                 %% list service id %%
-sudo docker service rm <SERVICE-ID>
-sudo docker secret rm <SECRET-ID>
-```
-## Docker swarm security 
-	Docker swarm Security need 4 ec2s
-```
-	sudo docker swarm init
-	sudo docker swarm join-token manager      %% save the token and add that in another node %%
-	sudo docker node ls                      %% test node is joined to swarm %%
-	sudo docker swarm join-token worker
-	sudo docker swarm join-token --rotate worker     %% to remove old worker token %%
-	sudo docker swarm leave --force
-	sudo openssl x509 -in /var/lib/docker/swarm/certificates/swarm-node.crt -text     %% to view certificates %%
-	sudo docker info 
-	sudo docker swarm update --cert-expiry 168h	        %% changes cert expiration %%
-```
-
-## Node app
-```
-# Dockerfile   for nodejs app
-	FROM node:alpine
-	
-	WORKDIR /app
-	
-	COPY package.json .
-	
-	RUN npm install
-	
-	COPY .  .
-	
-	CMD ["npm", "start"]
-```
-
-## Docker swarm
-```
-sudo docker swarm init --advertise-addr <manager-node-public-ip>
-sudo docker service create --replicas 3 --name my_web_service -p 8080:80 nginx:alpine
-sudo docker service ls
-sudo docker service scale my_web_service=5
-```
-
-## Build and manage bridge network
-```
-sudo docker network ls
-brctl show
-ip a show docker0
-docker run -dt ubuntu sleep infinity
-docker network inspect bridge
-ping <container_ip>
-docker exec -it <container_id> /bin/bash
-apt-get update
-apt-get install iputils-ping
-ping www.google.com
-docker run --name web1 -d -p 8080:80 nginx
-docker ps
-curl 127.0.0.1:8080
-```
-
-##  Overlay network
-	sudo docker swarm init --advertise-addr <manager-node-public-ip>
-	sudo docker network create --driver=overlay my_overlay_network
-	nano docker-compose.yml
-```
-version: '3'
-
-services:
-  web:
-    image: nginx:alpine
-    networks:
-      - my_overlay_network
-    deploy:
-      replicas: 3
-    ports:
-      - "8080:80"
-
-networks:
-  my_overlay_network:
-    external: true
-```
-	sudo docker stack deploy -c docker-compose.yml my_overlay_stack
-	sudo docker stack services my_overlay_stack
-	public-ip:8080 in webpage
-
-### own base image creation
-```
-sudo su
-sudo debootstrap focal focal > /dev/null
-sudo tar -C focal -c . | docker import - focal
-docker run focal cat /etc/lsb-release
-```
-
-### Docker service on overlay network
-```
-sudo su
-docker swarm init
-docker network create --driver overlay myoverlay0
-docker service create --name testWeb -p 80:80 --network=myoverlay0 --replicas 3 httpd
-docker service inspect --format='{{.ID}}' testWeb
-docker service create --name testApp -p 8081:80 --replicas 3 nginx:alpine
-docker service inspect --format='{{.ID}}' testApp
-docker service update --network-add myoverlay0 testApp
-docker service inspect --format='{{range .Endpoint.Ports}}{{.PublishedPort}}{{end}}' testApp
-docker service update --network-rm myoverlay0 testApp
-```
-# Docker Aliases
-```
-alias d='sudo docker'
-alias dc='sudo docker-compose'
-alias dps='sudo docker ps'
-alias di='sudo docker images'
-alias drm='sudo docker rm'
-alias drmi='sudo docker rmi'
-alias dlogs='sudo docker logs -f'
-```
-
-# Backup Volume
-```
-sudo docker run --rm -v my_volume:/data -v ~/docker-backups:/backup busybox tar cvf /backup/my_volume_backup.tar /data
-sudo docker run --rm -v my_volume:/data -v ~/docker-backups:/backup busybox sh -c "cd /data && tar xvf /backup/my_volume_backup.tar --strip 1"
-
-```
-
-
 ### 📦  1. Basic Management & Image Operations
 
 These commands handle the Docker daemon's status and the lifecycle of images.
@@ -319,3 +139,184 @@ Critical distinctions for high-level understanding and troubleshooting.
 ---
 
 **Analogy for Recall**: Think of Docker like a **Standardized Shipping Port**. The **Image** is the blueprint for a crate; the **Registry** is the library of blueprints; the **Container** is the physical crate moved by the crane (**Docker Engine**); and the **Volume** is a permanent warehouse on the dock where contents are stored so they aren't lost when the crate is recycled.
+
+
+## 9. Network
+sudo docker network create mynetwork   
+	- if mynetwork is used for containers then they can communicate with each other internally.
+## Volume
+```
+docker volume create mydata
+docker volume ls
+docker volume inspect mydata
+docker run -c mydata:/var/opt/project bash:latest bash -c "echo firstcontainer > /var/opt/project/first.txt"
+docker run -c mydata:/var/opt/project bash:latest bash -c "ls /var/opt/project"
+```
+
+docker system prune -a --volumes  %% danger for cleanup of volumes %%
+
+## 10. Run container 
+```
+sudo docker run -it ubuntu:latest     %% ineractive terminal  -it %%
+echo "This is my first ubuntu container" > index.txt
+ls
+sudo docker rm <containerid>
+docker run -d --name firstcontainer -p 80:80 httpd
+curl http://localhost:80
+```
+Docker Content Trust
+export DOCKER_CONTENT_TRUST=1
+##  11. **What should my Dockerfile look like to run as a non-root user?**
+```
+FROM ubuntu:22.04
+
+# Create a non-root user and group
+RUN groupadd -r myuser && useradd -r -g myuser myuser
+
+# Set the user
+USER myuser
+
+# Your app logic here
+WORKDIR /app
+COPY . /app
+CMD ["./run.sh"]
+
+```
+
+
+## 12. Docker Swarm
+```
+sudo docker swarm init
+sudo docker node ls
+sudo docker info
+sudo echo "secrets are important" > sec.txt   %% create secret %%
+sudo docker secret create sec1 ./sec.txt   %% create secret in docker from root %%
+sudo docker secret ls     %% lists secrets %%
+sudo docker secret inspect sec1
+sudo docker service create --name sec-test --secret="sec1" redis:alpine      %% create service with secret %%
+sudo docker ps --filter name=sec-test
+sudo docker exec -it <CONTAINER_ID> sh       %% sec-test container id %%
+cat /run/secrets/sec1     %% secret is stored in /run/secret/ %%
+sudo docker service ls -q                 %% list service id %%
+sudo docker service rm <SERVICE-ID>
+sudo docker secret rm <SECRET-ID>
+```
+## 13. Docker swarm security 
+	Docker swarm Security need 4 ec2s
+```
+	sudo docker swarm init
+	sudo docker swarm join-token manager      %% save the token and add that in another node %%
+	sudo docker node ls                      %% test node is joined to swarm %%
+	sudo docker swarm join-token worker
+	sudo docker swarm join-token --rotate worker     %% to remove old worker token %%
+	sudo docker swarm leave --force
+	sudo openssl x509 -in /var/lib/docker/swarm/certificates/swarm-node.crt -text     %% to view certificates %%
+	sudo docker info 
+	sudo docker swarm update --cert-expiry 168h	        %% changes cert expiration %%
+```
+
+## 14. Node app
+```
+# Dockerfile   for nodejs app
+	FROM node:alpine
+	
+	WORKDIR /app
+	
+	COPY package.json .
+	
+	RUN npm install
+	
+	COPY .  .
+	
+	CMD ["npm", "start"]
+```
+
+## Docker swarm
+```
+sudo docker swarm init --advertise-addr <manager-node-public-ip>
+sudo docker service create --replicas 3 --name my_web_service -p 8080:80 nginx:alpine
+sudo docker service ls
+sudo docker service scale my_web_service=5
+```
+
+## 15. Build and manage bridge network
+```
+sudo docker network ls
+brctl show
+ip a show docker0
+docker run -dt ubuntu sleep infinity
+docker network inspect bridge
+ping <container_ip>
+docker exec -it <container_id> /bin/bash
+apt-get update
+apt-get install iputils-ping
+ping www.google.com
+docker run --name web1 -d -p 8080:80 nginx
+docker ps
+curl 127.0.0.1:8080
+```
+
+##  16. Overlay network
+	sudo docker swarm init --advertise-addr <manager-node-public-ip>
+	sudo docker network create --driver=overlay my_overlay_network
+	nano docker-compose.yml
+```
+version: '3'
+
+services:
+  web:
+    image: nginx:alpine
+    networks:
+      - my_overlay_network
+    deploy:
+      replicas: 3
+    ports:
+      - "8080:80"
+
+networks:
+  my_overlay_network:
+    external: true
+```
+	sudo docker stack deploy -c docker-compose.yml my_overlay_stack
+	sudo docker stack services my_overlay_stack
+	public-ip:8080 in webpage
+
+### 17. Own base image creation
+```
+sudo su
+sudo debootstrap focal focal > /dev/null
+sudo tar -C focal -c . | docker import - focal
+docker run focal cat /etc/lsb-release
+```
+
+### 18. Docker service on overlay network
+```
+sudo su
+docker swarm init
+docker network create --driver overlay myoverlay0
+docker service create --name testWeb -p 80:80 --network=myoverlay0 --replicas 3 httpd
+docker service inspect --format='{{.ID}}' testWeb
+docker service create --name testApp -p 8081:80 --replicas 3 nginx:alpine
+docker service inspect --format='{{.ID}}' testApp
+docker service update --network-add myoverlay0 testApp
+docker service inspect --format='{{range .Endpoint.Ports}}{{.PublishedPort}}{{end}}' testApp
+docker service update --network-rm myoverlay0 testApp
+```
+# 19. Docker Aliases
+```
+alias d='sudo docker'
+alias dc='sudo docker-compose'
+alias dps='sudo docker ps'
+alias di='sudo docker images'
+alias drm='sudo docker rm'
+alias drmi='sudo docker rmi'
+alias dlogs='sudo docker logs -f'
+```
+
+# 20. Backup Volume
+```
+sudo docker run --rm -v my_volume:/data -v ~/docker-backups:/backup busybox tar cvf /backup/my_volume_backup.tar /data
+sudo docker run --rm -v my_volume:/data -v ~/docker-backups:/backup busybox sh -c "cd /data && tar xvf /backup/my_volume_backup.tar --strip 1"
+
+```
+
